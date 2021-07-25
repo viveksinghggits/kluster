@@ -1,0 +1,8 @@
+apiVersion: viveksingh.dev/v1alpha1
+kind: Kluster
+metadata:
+  name: kluster-0
+spec:
+  name: kluster-0
+  region: "ap-south-1"
+  version: "1234"
