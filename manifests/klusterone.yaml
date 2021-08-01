@@ -6,3 +6,4 @@ spec:
   name: kluster-0
   region: "ap-south-1"
   version: "1234"
+  tokenSecret: "dosecret"
