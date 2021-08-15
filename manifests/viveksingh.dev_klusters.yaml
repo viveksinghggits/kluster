@@ -16,7 +16,14 @@ spec:
     singular: kluster
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.klusterID
+      name: ClusterID
+      type: string
+    - jsonPath: .status.progress
+      name: Progress
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         properties:
@@ -49,14 +56,25 @@ spec:
                 type: array
               region:
                 type: string
+              tokenSecret:
+                type: string
               version:
                 type: string
-              tokenSecret:
+            type: object
+          status:
+            properties:
+              klusterID:
+                type: string
+              kubeConfig:
+                type: string
+              progress:
                 type: string
             type: object
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

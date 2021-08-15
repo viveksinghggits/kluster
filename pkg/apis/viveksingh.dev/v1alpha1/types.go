@@ -6,11 +6,21 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="ClusterID",type=string,JSONPath=`.status.klusterID`
+// +kubebuilder:printcolumn:name="Progress",type=string,JSONPath=`.status.progress`
 type Kluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec KlusterSpec `json:"spec,omitempty"`
+	Spec   KlusterSpec   `json:"spec,omitempty"`
+	Status KlsuterStatus `json:"status,omitempty"`
+}
+
+type KlsuterStatus struct {
+	KlusterID  string `json:"klusterID,omitempty"`
+	Progress   string `json:"progress,omitempty"`
+	KubeConfig string `json:"kubeConfig,omitempty"`
 }
 
 type KlusterSpec struct {

@@ -1,14 +1,17 @@
 package controller
 
 import (
+	"context"
 	"log"
 	"time"
 
+	"github.com/viveksinghggits/kluster/pkg/apis/viveksingh.dev/v1alpha1"
 	klientset "github.com/viveksinghggits/kluster/pkg/client/clientset/versioned"
 	kinf "github.com/viveksinghggits/kluster/pkg/client/informers/externalversions/viveksingh.dev/v1alpha1"
 	klister "github.com/viveksinghggits/kluster/pkg/client/listers/viveksingh.dev/v1alpha1"
 	"github.com/viveksinghggits/kluster/pkg/do"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -98,7 +101,19 @@ func (c *Controller) processNextItem() bool {
 	}
 	log.Printf("cluster id that we have is %s\n", clusterID)
 
+	err = c.updateStatus(clusterID, "creating", kluster)
+	if err != nil {
+		log.Printf("error %s, updating status of the kluster %s\n", err.Error(), kluster.Name)
+	}
+
 	return true
+}
+
+func (c *Controller) updateStatus(id, progress string, kluster *v1alpha1.Kluster) error {
+	kluster.Status.KlusterID = id
+	kluster.Status.Progress = progress
+	_, err := c.klient.ViveksinghV1alpha1().Klusters(kluster.Namespace).UpdateStatus(context.Background(), kluster, metav1.UpdateOptions{})
+	return err
 }
 
 func (c *Controller) handleAdd(obj interface{}) {
