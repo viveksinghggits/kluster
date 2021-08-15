@@ -32,3 +32,35 @@ execDir=~/go/src/k8s.io/code-generator
 ```
 controller-gen paths=github.com/viveksinghggits/kluster/pkg/apis/viveksingh.dev/v1alpha1  crd:trivialVersions=true  crd:crdVersions=v1  output:crd:artifacts:config=manifests
 ```
+
+
+
+
+apiVersion
+kind
+metadata:
+spec:
+    ...
+    ...
+status:
+    clusterId
+    progress
+    kubeconfig
+
+
+
+role-test:
+    resources: Kluster/status
+
+resource
+    apis/apps/v1/namespaces/<ns>/deployments
+    v1/namespaces/<ns>/pods/<podname>/
+
+
+pods        logs
+
+logs subresources
+        v1/namespaces/<ns>/pods/<podname>/logs
+
+
+
