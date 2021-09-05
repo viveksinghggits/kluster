@@ -1,0 +1,13 @@
+apiVersion: viveksingh.dev/v1alpha1
+kind: Kluster
+metadata:
+  name: kluster-4
+spec:
+  name: kluster-4
+  region: "nyc1"
+  version: "1.21.2-do.2"
+  tokenSecret: "default/dosecret"
+  nodePools:
+    - count: 3
+      name: "dummy-nodepool"
+      size: "s-2vcpu-2gb"

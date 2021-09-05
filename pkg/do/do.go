@@ -40,6 +40,18 @@ func Create(c kubernetes.Interface, spec v1alpha1.KlusterSpec) (string, error) {
 	return cluster.ID, nil
 }
 
+func ClusterState(c kubernetes.Interface, spec v1alpha1.KlusterSpec, id string) (string, error) {
+	token, err := getToken(c, spec.TokenSecret)
+	if err != nil {
+		return "", err
+	}
+
+	client := godo.NewFromToken(token)
+
+	cluster, _, err := client.Kubernetes.Get(context.Background(), id)
+	return string(cluster.Status.State), err
+}
+
 func getToken(client kubernetes.Interface, sec string) (string, error) {
 	namespace := strings.Split(sec, "/")[0]
 	name := strings.Split(sec, "/")[1]

@@ -7,14 +7,21 @@ import (
 
 	"github.com/viveksinghggits/kluster/pkg/apis/viveksingh.dev/v1alpha1"
 	klientset "github.com/viveksinghggits/kluster/pkg/client/clientset/versioned"
+	customscheme "github.com/viveksinghggits/kluster/pkg/client/clientset/versioned/scheme"
 	kinf "github.com/viveksinghggits/kluster/pkg/client/informers/externalversions/viveksingh.dev/v1alpha1"
 	klister "github.com/viveksinghggits/kluster/pkg/client/listers/viveksingh.dev/v1alpha1"
 	"github.com/viveksinghggits/kluster/pkg/do"
 
+	"github.com/kanisterio/kanister/pkg/poll"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -29,15 +36,27 @@ type Controller struct {
 	kLister klister.KlusterLister
 	// queue
 	wq workqueue.RateLimitingInterface
+
+	recorder record.EventRecorder
 }
 
 func NewController(client kubernetes.Interface, klient klientset.Interface, klusterInformer kinf.KlusterInformer) *Controller {
+	runtime.Must(customscheme.AddToScheme(scheme.Scheme))
+
+	eveBroadCaster := record.NewBroadcaster()
+	eveBroadCaster.StartStructuredLogging(0)
+	eveBroadCaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
+		Interface: client.CoreV1().Events(""),
+	})
+	recorder := eveBroadCaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Kluster"})
+
 	c := &Controller{
 		client:        client,
 		klient:        klient,
 		klusterSynced: klusterInformer.Informer().HasSynced,
 		kLister:       klusterInformer.Lister(),
 		wq:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "kluster"),
+		recorder:      recorder,
 	}
 
 	klusterInformer.Informer().AddEventHandler(
@@ -99,6 +118,9 @@ func (c *Controller) processNextItem() bool {
 		// do something
 		log.Printf("errro %s, creating the cluster", err.Error())
 	}
+
+	c.recorder.Event(kluster, corev1.EventTypeNormal, "ClusterCreation", "DO API was called to create the cluster")
+
 	log.Printf("cluster id that we have is %s\n", clusterID)
 
 	err = c.updateStatus(clusterID, "creating", kluster)
@@ -106,13 +128,48 @@ func (c *Controller) processNextItem() bool {
 		log.Printf("error %s, updating status of the kluster %s\n", err.Error(), kluster.Name)
 	}
 
+	// query DO API to make sure clsuter' state is running
+	err = c.waitForCluster(kluster.Spec, clusterID)
+	if err != nil {
+		log.Printf("error %s, waiting for cluster to be running", err.Error())
+	}
+
+	err = c.updateStatus(clusterID, "running", kluster)
+	if err != nil {
+		log.Printf("error %s updaring cluster status after waiting for cluster", err.Error())
+	}
+
+	c.recorder.Event(kluster, corev1.EventTypeNormal, "ClusterCreationCompleted", "DO Cluster creation was completed")
 	return true
 }
 
+func (c *Controller) waitForCluster(spec v1alpha1.KlusterSpec, clusterID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	return poll.Wait(ctx, func(ctx context.Context) (bool, error) {
+		state, err := do.ClusterState(c.client, spec, clusterID)
+		if err != nil {
+			return false, err
+		}
+		if state == "running" {
+			return true, nil
+		}
+
+		return false, nil
+	})
+}
+
 func (c *Controller) updateStatus(id, progress string, kluster *v1alpha1.Kluster) error {
-	kluster.Status.KlusterID = id
-	kluster.Status.Progress = progress
-	_, err := c.klient.ViveksinghV1alpha1().Klusters(kluster.Namespace).UpdateStatus(context.Background(), kluster, metav1.UpdateOptions{})
+	// get the latest version of kluster
+	k, err := c.klient.ViveksinghV1alpha1().Klusters(kluster.Namespace).Get(context.Background(), kluster.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	k.Status.KlusterID = id
+	k.Status.Progress = progress
+	_, err = c.klient.ViveksinghV1alpha1().Klusters(kluster.Namespace).UpdateStatus(context.Background(), k, metav1.UpdateOptions{})
 	return err
 }
 
