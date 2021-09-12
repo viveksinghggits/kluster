@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
@@ -27,7 +28,11 @@ func main() {
 
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
-		log.Printf("Building config from flags, %s", err.Error())
+		log.Printf("Building config from flags failed, %s, trying to build inclusterconfig", err.Error())
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			log.Printf("error %s building inclusterconfig", err.Error())
+		}
 	}
 
 	klientset, err := klient.NewForConfig(config)

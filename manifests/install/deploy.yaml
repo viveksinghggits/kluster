@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: kluster
+  name: kluster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kluster
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: kluster
+    spec:
+      containers:
+      - image: viveksinghggits/kluster:0.1.0
+        name: kluster
+        resources: {}
+      serviceAccountName: kluster-sa
+status: {}
