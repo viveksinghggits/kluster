@@ -1,66 +1,60 @@
 
 
-# Kluster (In Progress)
+# Kluster
 
-An operator that we are writing in the YouTube channel (https://youtu.be/89PdRvRUcPU)
+A example Kubernetes operator to create Kubernetes cluster on DigitalOcean.
+Once the operator is running, and we create a Kluster K8S resource in a cluster, a DigitalOcean Kubernetes
+cluster would be created with provided configuration.
 
-viveksingh.dev
-v1alpha1
+This operator was written as part of one of my [YouTube playlist](https://www.youtube.com/watch?v=89PdRvRUcPU&list=PLh4KH3LtJvRTtFWz1WGlyDa7cKjj2Sns0).
 
-generate
-
-1. deep copy objects
-2. clientset
-3. informers
-4. lister
-
-# Commands that we used
-
-Should be run from root dir of project.
-
-## Code generator
-
-Make sure you have installed code generator
+Here is an example of the Kluster resource
 
 ```
-execDir=~/go/src/k8s.io/code-generator
-"${execDir}"/generate-groups.sh all github.com/viveksinghggits/kluster/pkg/client github.com/viveksinghggits/kluster/pkg/apis viveksingh.dev:v1alpha1 --go-header-file "${execDir}"/hack/boilerplate.go.txt
-```
-
-## CRDs
-
-```
-controller-gen paths=github.com/viveksinghggits/kluster/pkg/apis/viveksingh.dev/v1alpha1  crd:trivialVersions=true  crd:crdVersions=v1  output:crd:artifacts:config=manifests
-```
-
-
-
-
-apiVersion
-kind
+apiVersion: viveksingh.dev/v1alpha1
+kind: Kluster
 metadata:
+  name: kluster-0
 spec:
-    ...
-    ...
-status:
-    clusterId
-    progress
-    kubeconfig
+  name: kluster-0
+  region: "nyc1"
+  version: "1.21.3-do.0"
+  tokenSecret: "default/dosecret" # secret that has DigitalOcean token
+  nodePools:
+    - count: 3
+      name: "dummy-nodepool"
+      size: "s-2vcpu-2gb"
+```
 
+# Deploy on a Kubernetes cluster
 
+Execute below command, from root of the repo
 
-role-test:
-    resources: Kluster/status
+Create Kluster CRD
 
-resource
-    apis/apps/v1/namespaces/<ns>/deployments
-    v1/namespaces/<ns>/pods/<podname>/
+```
+kubectl create -f manifests/viveksingh.dev_klusters.yaml
+```
 
+Create RBAC resources and deployment
 
-pods        logs
+```
+kubectl create -f manifests/install/
+```
 
-logs subresources
-        v1/namespaces/<ns>/pods/<podname>/logs
+# Create a secret with DigitalOcean token
 
+To call DigitalOcean APIs we will have to create a secret with DigitalOcean token that
+will be used in the Kluster CR that we create.
 
+```
+kubectl create secret generic dosecret --from-literal token=<your-DO-token>
+```
 
+# Create a kluster CR
+
+Create the kluster resource to create a k8s cluster in DigitalOcean
+
+```
+kubectl create -f manifests/klusterone.yaml
+```
