@@ -1,5 +1,4 @@
 
-
 # Kluster
 
 A example Kubernetes operator to create Kubernetes cluster on DigitalOcean.
@@ -10,7 +9,7 @@ This operator was written as part of one of my [YouTube playlist](https://www.yo
 
 Here is an example of the Kluster resource
 
-```
+```yaml
 apiVersion: viveksingh.dev/v1alpha1
 kind: Kluster
 metadata:
@@ -32,13 +31,13 @@ Execute below command, from root of the repo
 
 Create Kluster CRD
 
-```
+```sh
 kubectl create -f manifests/viveksingh.dev_klusters.yaml
 ```
 
 Create RBAC resources and deployment
 
-```
+```sh
 kubectl create -f manifests/install/
 ```
 
@@ -47,7 +46,7 @@ kubectl create -f manifests/install/
 To call DigitalOcean APIs we will have to create a secret with DigitalOcean token that
 will be used in the Kluster CR that we create.
 
-```
+```sh
 kubectl create secret generic dosecret --from-literal token=<your-DO-token>
 ```
 
@@ -55,6 +54,22 @@ kubectl create secret generic dosecret --from-literal token=<your-DO-token>
 
 Create the kluster resource to create a k8s cluster in DigitalOcean
 
-```
+```sh
 kubectl create -f manifests/klusterone.yaml
+```
+
+# Updating CRD manifest
+
+Update the CRD manifest (`manifests/viveksingh.dev_klusters.yaml`) using docker:
+
+```sh
+docker buildx build --file hack/Dockerfile.update-crds -o . .
+```
+
+# Updating the auto-generated code
+
+Update the auto-generated code (`pkg/client/` and `pkg/apis/viveksingh.dev/v1alpha1/zz_generated.deepcopy.go`) using docker:
+
+```sh
+docker buildx build --file hack/Dockerfile.update-codegen -o . .
 ```

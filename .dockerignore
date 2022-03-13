@@ -1,0 +1,10 @@
+config/
+hack/
+manifests/
+.vscode/
+.git/
+.dockerignore
+.gitignore
+Dockerfile
+README.md
+kluster

@@ -1,0 +1,14 @@
+# hack/Dockerfile.update-crds
+
+# Usage: docker buildx build --file hack/Dockerfile.update-crds -o . .
+
+FROM golang:1.13 AS build
+WORKDIR /go/src/github.com/viveksinghggits/kluster
+RUN GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5
+COPY . .
+RUN controller-gen paths=github.com/viveksinghggits/kluster/pkg/apis/viveksingh.dev/v1alpha1 \
+    crd:crdVersions=v1 \
+    output:crd:artifacts:config=manifests
+
+FROM scratch
+COPY --from=build /go/src/github.com/viveksinghggits/kluster/manifests manifests
