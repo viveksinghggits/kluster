@@ -15,8 +15,10 @@ rules:
   - ""
   resources:
   - events
+  - namespaces
   verbs:
   - create
+  - get
 - apiGroups:
   - viveksingh.dev
   resources:
@@ -29,3 +31,4 @@ rules:
   - klusters
   verbs:
   - get
+  - update

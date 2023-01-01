@@ -2,6 +2,8 @@ apiVersion: viveksingh.dev/v1alpha1
 kind: Kluster
 metadata:
   name: kluster-0
+  finalizers:
+  - "viveksingh.dev/prod-protection"
 spec:
   name: kluster-0
   region: "nyc1"

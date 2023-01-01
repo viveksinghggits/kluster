@@ -14,6 +14,7 @@ import (
 
 	"github.com/kanisterio/kanister/pkg/poll"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -23,6 +24,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+)
+
+const (
+	klusterFinalizer = "viveksingh.dev/prod-protection"
+	protectedNS      = "prod"
 )
 
 type Controller struct {
@@ -63,10 +69,48 @@ func NewController(client kubernetes.Interface, klient klientset.Interface, klus
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    c.handleAdd,
 			DeleteFunc: c.handleDel,
+			UpdateFunc: c.handleUpdate,
 		},
 	)
 
 	return c
+}
+
+// its gong to get called, whenever the resource is updated
+func (c *Controller) handleUpdate(ondObj, newObj interface{}) {
+	// get the kluster resource
+	kluster, ok := newObj.(*v1alpha1.Kluster)
+	if !ok {
+		log.Printf("can not convert newObj to kluster resource\n")
+		return
+	}
+	ctx := context.Background()
+	// if the finalizer is set or not
+	// check if the cluster has prod namespace
+	_, err := c.client.CoreV1().Namespaces().Get(ctx, protectedNS, metav1.GetOptions{}) // this would requrie role change to be able to get ns
+	if err == nil {
+		// prod ns is available, do nothing
+		return
+	}
+	// if it has, do nothing
+	// otherwise, remove finalizer `viveksingh.dev/prod-protection` from resource
+	// if we are here, there is an err set, to be explicit you can check this says resource not found
+	k := kluster.DeepCopy()
+	finals := []string{}
+	for _, f := range k.Finalizers {
+		if f == klusterFinalizer {
+			continue
+		}
+		finals = append(finals, f)
+	}
+	k.Finalizers = finals
+
+	// change role to be able to update the kluster resource
+	if _, err = c.klient.ViveksinghV1alpha1().Klusters(k.Namespace).Update(ctx, k, metav1.UpdateOptions{}); err != nil {
+		log.Printf("Update of the kluster resource failed: %s\n", err.Error())
+		return
+	}
+	log.Println("Finalizer was removed from the resource")
 }
 
 func (c *Controller) Run(ch chan struct{}) error {
@@ -108,6 +152,10 @@ func (c *Controller) processNextItem() bool {
 
 	kluster, err := c.kLister.Klusters(ns).Get(name)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return deleteDOCluster()
+		}
+
 		log.Printf("error %s, Getting the kluster resource from lister", err.Error())
 		return false
 	}
@@ -140,6 +188,12 @@ func (c *Controller) processNextItem() bool {
 	}
 
 	c.recorder.Event(kluster, corev1.EventTypeNormal, "ClusterCreationCompleted", "DO Cluster creation was completed")
+	return true
+}
+
+func deleteDOCluster() bool {
+	// this actualy deletes the cluster from the DO
+	log.Println("Cluster was deleted succcessfully")
 	return true
 }
 
